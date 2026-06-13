@@ -6,7 +6,7 @@ st.set_page_config(page_title="Local PDF AI Assistant", layout="wide")
 st.title("📚 Local PDF AI Assistant (Powered by Gemini)")
 st.subheader("Upload your study material to get started.")
 
-GEMINI_API_KEY = "AQ.Ab8RN6JA31mt75lyieECa4gjfjFBDtwnnXA07vbqJzcBvy7pDQ"
+GEMINI_API_KEY = st.secrets["AQ.Ab8RN6JA31mt75lyieECa4gjfjFBDtwnnXA07vbqJzcBvy7pDQ"]
 
 with st.sidebar:
     st.header("Upload Document")
