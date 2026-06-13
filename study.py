@@ -1,13 +1,12 @@
 import streamlit as st
 import pypdf
-from genai import Client  # Using the clean modern genai client SDK
+import google.generativeai as genai
 
-# Securely grab the key from your Streamlit workspace vault drawer
+# Securely grab your key from your Streamlit workspace vault drawer
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
-# Properly pass the key string inside the official Client loader structure
-client = Client(api_key=GEMINI_API_KEY)
-
+# Properly configure the official Google AI library block
+genai.configure(api_key=GEMINI_API_KEY)
 with st.sidebar:
     st.header("Upload Document")
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
