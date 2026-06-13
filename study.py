@@ -6,7 +6,7 @@ from google import genai  # Clean modern library import for Gemini 2.5
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 with st.sidebar:
-    st.header("Upload Document")
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
 if uploaded_file is not None:
