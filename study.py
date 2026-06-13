@@ -1,12 +1,12 @@
 import streamlit as st
 import pypdf
-from google import genai
+from genai import Client  # Using the clean modern genai client SDK
 
-st.set_page_config(page_title="Local PDF AI Assistant", layout="wide")
-st.title("📚 Local PDF AI Assistant (Powered by Gemini)")
-st.subheader("Upload your study material to get started.")
-
+# Securely grab the key from your Streamlit workspace vault drawer
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+
+# Properly pass the key string inside the official Client loader structure
+client = Client(api_key=GEMINI_API_KEY)
 
 with st.sidebar:
     st.header("Upload Document")
