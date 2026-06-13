@@ -1,12 +1,10 @@
 import streamlit as st
 import pypdf
-import google.generativeai as genai
+from google import genai  # Clean modern library import for Gemini 2.5
 
 # Securely grab your key from your Streamlit workspace vault drawer
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
-# Properly configure the official Google AI library block
-genai.configure(api_key=GEMINI_API_KEY)
 with st.sidebar:
     st.header("Upload Document")
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
@@ -50,6 +48,7 @@ if uploaded_file is not None:
     if user_query:
         with st.spinner("Gemini is analyzing your document instantly..."):
             try:
+                # Properly initialize using the modern Client library block
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 
                 # Take a perfectly sized chunk of the document text for high speed response
