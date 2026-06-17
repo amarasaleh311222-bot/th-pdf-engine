@@ -94,7 +94,7 @@ if uploaded_file is not None:
                                         st.markdown("---")
                                         st.write(f"**Answer:** {back_text}")
                     else:
-                        st.write(raw_text)
+                        st.write(raw_text) # ✅ Fixed: Added 'st' prefix here
                 else:
                     st.write(response.text)
                     
