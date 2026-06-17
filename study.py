@@ -1,14 +1,24 @@
 import streamlit as st
 import pypdf
-import os  # Added to read Render's secure vault environment
+import os  # Read Render's environment directly
 from google import genai
 
-# Check Render's vault first, fallback to Streamlit if local testing
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+# Securely pull the key directly from Render's Environment Variables panel
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+# Fallback block only if Render's vault isn't configured
 if not GEMINI_API_KEY:
-    st.error("API Key not found! Make sure GEMINI_API_KEY is added to your Environment Variables.")
+    try:
+        GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        st.error("API Key missing! Please add GEMINI_API_KEY to Render's Environment Variables.")
 
+# --- SIDEBAR UPLOADER SECTION (RESTORED) ---
+with st.sidebar:
+    st.header("Upload Document")
+    uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+
+# --- MAIN APP CODES ---
 if uploaded_file is not None:
     st.success(f"Successfully loaded: {uploaded_file.name}")
 
