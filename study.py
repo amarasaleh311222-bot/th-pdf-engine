@@ -1,6 +1,7 @@
 import streamlit as st
 import pypdf
-import os  # Read Render's environment directly
+import os
+import re  # Added to process flashcard blocks
 from google import genai
 
 # Securely pull the key directly from Render's Environment Variables panel
@@ -13,7 +14,7 @@ if not GEMINI_API_KEY:
     except Exception:
         st.error("API Key missing! Please add GEMINI_API_KEY to Render's Environment Variables.")
 
-# --- SIDEBAR UPLOADER SECTION (RESTORED) ---
+# --- SIDEBAR UPLOADER SECTION ---
 with st.sidebar:
     st.header("Upload Document")
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
@@ -22,12 +23,10 @@ with st.sidebar:
 if uploaded_file is not None:
     st.success(f"Successfully loaded: {uploaded_file.name}")
 
-    # FIX: Changed to cache_data so it never re-reads the PDF text on button clicks!
     @st.cache_data
     def extract_text_from_pdf(file_bytes):
         pdf_reader = pypdf.PdfReader(file_bytes)
         full_text = ""
-        # Keep it to a safe, highly-optimized page limit for speed
         max_pages = min(20, len(pdf_reader.pages))
         for i in range(max_pages):
             page_text = pdf_reader.pages[i].extract_text()
@@ -35,13 +34,14 @@ if uploaded_file is not None:
                 full_text += page_text + "\n"
         return full_text
 
-    # Read the file data once and lock it into memory
     document_text = extract_text_from_pdf(uploaded_file)
 
     st.write("### ⚡ Quick Study Tools")
     col1, col2, col3 = st.columns(3)
     
     preset_query = ""
+    is_flashcard_mode = False
+    
     with col1:
         if st.button("📝 Generate Comprehensive Summary"):
             preset_query = "Provide a comprehensive, structured summary of the main themes and concepts discussed in this document."
@@ -50,20 +50,21 @@ if uploaded_file is not None:
             preset_query = "Extract a bulleted list of the most important key points, core definitions, and terms from this text."
     with col3:
         if st.button("🎴 Create Study Flashcards"):
-            preset_query = "Based on this text, generate 5 study flashcards. Format them clearly as 'Front (Question):' and 'Back of Card (Answer):'."
+            # We give Gemini a very strict layout format so our Python code can break it apart into real flipping cards
+            preset_query = "Based on this text, generate 5 study flashcards. You must strictly follow this exact format for each card:\n\n[CARD_START]\nFRONT: (Write the question here)\nBACK: (Write the answer here)\n[CARD_END]"
 
     st.write("### 💬 Ask Anything")
     user_query = st.text_input("Enter your question or use a quick prompt above:", value=preset_query)
 
     if user_query:
+        # Check if the user is explicitly generating flashcards
+        if "[CARD_START]" in user_query or "Flashcards" in user_query:
+            is_flashcard_mode = True
+
         with st.spinner("Gemini is analyzing your document instantly..."):
             try:
-                # Properly initialize using the modern Client library block
                 client = genai.Client(api_key=GEMINI_API_KEY)
-                
-                # Take a perfectly sized chunk of the document text for high speed response
                 context = document_text[:8000]
-                
                 full_prompt = f"Context from PDF:\n{context}\n\nQuestion: {user_query}\n\nAnswer:"
                 
                 response = client.models.generate_content(
@@ -72,8 +73,40 @@ if uploaded_file is not None:
                 )
                 
                 st.write("### 🤖 Gemini Response:")
-                st.write(response.text)
+                
+                # --- INTERACTIVE FLASHCARD RENDERING ENGINE ---
+                if is_flashcard_mode:
+                    raw_text = response.text
+                    # Use regex to pull out the chunks between [CARD_START] and [CARD_END]
+                    cards = re.findall(r'\[CARD_START\](.*?)\[CARD_END\]', raw_text, re.DOTALL)
+                    
+                    if cards:
+                        for idx, card in enumerate(cards, 1):
+                            # Extract Front and Back details cleanly
+                            front_match = re.search(r'FRONT:\s*(.*?)(?=\nBACK:|$)', card, re.DOTALL)
+                            back_match = re.search(r'BACK:\s*(.*)', card, re.DOTALL)
+                            
+                            if front_match and back_match:
+                                front_text = front_match.group(1).strip()
+                                back_text = back_match.group(1).strip()
+                                
+                                # Render a premium container layout block
+                                with st.container(border=True):
+                                    st.markdown(r"$\mathbf{🎴\ Flashcard\ " + str(idx) + r"}$")
+                                    st.write(f"**Question:** {front_text}")
+                                    
+                                    # This button acts as the interactive "Flip Card" mechanism
+                                    if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
+                                        st.markdown("---")
+                                        st.write(f"**Answer:** {back_text}")
+                    else:
+                        # Fallback display if AI didn't follow the exact tag framework
+                        st.write(raw_text)
+                else:
+                    # Regular text summary view
+                    st.write(response.text)
+                    
             except Exception as e:
-                st.error(f"Gemini API Error: {e}. Make sure your API key is correctly pasted!")
+                st.error(f"Gemini API Error: {e}")
 else:
     st.info("Please upload a PDF file from the sidebar to begin processing.")
