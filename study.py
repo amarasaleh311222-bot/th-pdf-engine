@@ -1,13 +1,13 @@
 import streamlit as st
 import pypdf
 import os
-import re  # Added to process flashcard blocks
+import re
 from google import genai
 
-# Securely pull the key directly from Render's Environment Variables panel
+# Read the key directly from Render's Environment Variables panel
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Fallback block only if Render's vault isn't configured
+# Fallback block if Render vault isn't matching perfectly
 if not GEMINI_API_KEY:
     try:
         GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -50,14 +50,12 @@ if uploaded_file is not None:
             preset_query = "Extract a bulleted list of the most important key points, core definitions, and terms from this text."
     with col3:
         if st.button("🎴 Create Study Flashcards"):
-            # We give Gemini a very strict layout format so our Python code can break it apart into real flipping cards
             preset_query = "Based on this text, generate 5 study flashcards. You must strictly follow this exact format for each card:\n\n[CARD_START]\nFRONT: (Write the question here)\nBACK: (Write the answer here)\n[CARD_END]"
 
     st.write("### 💬 Ask Anything")
     user_query = st.text_input("Enter your question or use a quick prompt above:", value=preset_query)
 
     if user_query:
-        # Check if the user is explicitly generating flashcards
         if "[CARD_START]" in user_query or "Flashcards" in user_query:
             is_flashcard_mode = True
 
@@ -74,15 +72,12 @@ if uploaded_file is not None:
                 
                 st.write("### 🤖 Gemini Response:")
                 
-                # --- INTERACTIVE FLASHCARD RENDERING ENGINE ---
                 if is_flashcard_mode:
                     raw_text = response.text
-                    # Use regex to pull out the chunks between [CARD_START] and [CARD_END]
                     cards = re.findall(r'\[CARD_START\](.*?)\[CARD_END\]', raw_text, re.DOTALL)
                     
                     if cards:
                         for idx, card in enumerate(cards, 1):
-                            # Extract Front and Back details cleanly
                             front_match = re.search(r'FRONT:\s*(.*?)(?=\nBACK:|$)', card, re.DOTALL)
                             back_match = re.search(r'BACK:\s*(.*)', card, re.DOTALL)
                             
@@ -90,20 +85,17 @@ if uploaded_file is not None:
                                 front_text = front_match.group(1).strip()
                                 back_text = back_match.group(1).strip()
                                 
-                                # Render a premium container layout block
                                 with st.container(border=True):
-                                    st.markdown(r"$\mathbf{🎴\ Flashcard\ " + str(idx) + r"}$")
+                                    st.write(f"**🎴 Flashcard {idx}**")
                                     st.write(f"**Question:** {front_text}")
                                     
-                                    # This button acts as the interactive "Flip Card" mechanism
+                                    # Interactive Reveal Checkbox
                                     if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
                                         st.markdown("---")
                                         st.write(f"**Answer:** {back_text}")
                     else:
-                        # Fallback display if AI didn't follow the exact tag framework
                         st.write(raw_text)
                 else:
-                    # Regular text summary view
                     st.write(response.text)
                     
             except Exception as e:
