@@ -93,8 +93,13 @@ if uploaded_file is not None:
                                 "back": back_match.group(1).strip()
                             })
                     
-                    st.session_state.flashcards = parsed_cards
-                    st.session_state.normal_response = None
+                    # Fallback validation: if regex couldn't extract structures cleanly, capture raw text
+                    if parsed_cards:
+                        st.session_state.flashcards = parsed_cards
+                        st.session_state.normal_response = None
+                    else:
+                        st.session_state.normal_response = raw_text
+                        st.session_state.flashcards = None
                 else:
                     st.session_state.normal_response = raw_text
                     st.session_state.flashcards = None
@@ -111,14 +116,16 @@ if uploaded_file is not None:
             for idx, card in enumerate(st.session_state.flashcards, 1):
                 with st.container(border=True):
                     st.write(f"**🎴 Flashcard {idx}**")
-                    st.write(f"Question:")
+                    
+                    q_text = card['front'] if card['front'] else "Click toggle below to view card information"
+                    st.write(f"**Question:** {q_text}")
                     
                     # Interactive Flip Checkbox
                     if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
                         st.markdown("---")
                         st.write(f"Answer:")
                         
-        # Render Standard Summary texts safely
+        # Render Standard Summary texts or raw text fallbacks safely
         elif st.session_state.normal_response:
             st.write(st.session_state.normal_response)
 else:
