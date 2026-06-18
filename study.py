@@ -85,15 +85,16 @@ if uploaded_file is not None:
                     parsed_cards = []
                     
                     for card in cards:
-                        front_match = re.search(r'FRONT:\s*(.*?)(?=\nBACK:|$)', card, re.DOTALL)
-                        back_match = re.search(r'BACK:\s*(.*)', card, re.DOTALL)
+                        # Smart case-insensitive regex matching for FRONT/FRONT: and BACK/BACK:
+                        front_match = re.search(r'FRONT:\s*(.*?)(?=\n(?:BACK|BACK:)|$)', card, re.IGNORECASE | re.DOTALL)
+                        back_match = re.search(r'BACK:\s*(.*)', card, re.IGNORECASE | re.DOTALL)
+                        
                         if front_match and back_match:
                             parsed_cards.append({
                                 "front": front_match.group(1).strip(),
                                 "back": back_match.group(1).strip()
                             })
                     
-                    # Fallback validation: if regex couldn't extract structures cleanly, capture raw text
                     if parsed_cards:
                         st.session_state.flashcards = parsed_cards
                         st.session_state.normal_response = None
@@ -107,25 +108,23 @@ if uploaded_file is not None:
             except Exception as e:
                 st.error(f"Gemini API Error: {e}")
 
-    # --- RENDERING SECTION (Keeps everything visible on screen) ---
+    # --- RENDERING SECTION ---
     if st.session_state.flashcards or st.session_state.normal_response:
         st.write("### 🤖 Gemini Response:")
 
-        # Render Flashcards safely from storage state
         if st.session_state.flashcards:
             for idx, card in enumerate(st.session_state.flashcards, 1):
                 with st.container(border=True):
                     st.write(f"**🎴 Flashcard {idx}**")
-                    
-                    q_text = card['front'] if card['front'] else "Click toggle below to view card information"
-                    st.write(f"**Question:** {q_text}")
+                    st.write(f"Question:")
                     
                     # Interactive Flip Checkbox
                     if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
                         st.markdown("---")
-                        st.write(f"Answer:")
+                        # Added a clean fallback message if the answer string is blank
+                        ans_text = card['back'] if card['back'] else "No answer content generated. Try regenerating."
+                        st.write(f"**Answer:** {ans_text}")
                         
-        # Render Standard Summary texts or raw text fallbacks safely
         elif st.session_state.normal_response:
             st.write(st.session_state.normal_response)
 else:
