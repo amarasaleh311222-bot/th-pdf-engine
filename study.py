@@ -85,7 +85,6 @@ if uploaded_file is not None:
                     parsed_cards = []
                     
                     for card in cards:
-                        # Fixed: Bulletproof matching that stops at BACK regardless of spacing or line breaks
                         front_match = re.search(r'FRONT:\s*(.*?)\s*(?=BACK:|$)', card, re.IGNORECASE | re.DOTALL)
                         back_match = re.search(r'BACK:\s*(.*)', card, re.IGNORECASE | re.DOTALL)
                         
@@ -113,19 +112,77 @@ if uploaded_file is not None:
         st.write("### 🤖 Gemini Response:")
 
         if st.session_state.flashcards:
+            # Inject Premium CSS for smooth 3D flipping cards
+            st.markdown("""
+                <style>
+                .flip-card {
+                    background-color: transparent;
+                    width: 100%;
+                    height: 180px;
+                    perspective: 1000px;
+                    margin-bottom: 20px;
+                }
+                .flip-card-inner {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
+                    text-align: center;
+                    transition: transform 0.6s;
+                    transform-style: preserve-3d;
+                    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+                    border-radius: 10px;
+                }
+                .flip-card:hover .flip-card-inner {
+                    transform: rotateY(180deg);
+                }
+                .flip-card-front, .flip-card-back {
+                    position: absolute;
+                    width: 100%;
+                    height: 100%;
+                    -webkit-backface-visibility: hidden;
+                    backface-visibility: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-direction: column;
+                    padding: 20px;
+                    border-radius: 10px;
+                    border: 1px solid #4d4d4d;
+                }
+                .flip-card-front {
+                    background-color: #1e1e1e;
+                    color: #ffffff;
+                }
+                .flip-card-back {
+                    background-color: #0e1117;
+                    color: #ffd700;
+                    transform: rotateY(180deg);
+                    border: 1px solid #ffd700;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+
             for idx, card in enumerate(st.session_state.flashcards, 1):
-                with st.container(border=True):
-                    st.write(f"**🎴 Flashcard {idx}**")
-                    
-                    # Clean fallback check just in case text parsing encounters an issue
-                    q_text = card['front'] if card['front'] else "Question content missing. Click below to flip."
-                    st.write(f"**Question:** {q_text}")
-                    
-                    # Interactive Flip Checkbox
-                    if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
-                        st.markdown("---")
-                        ans_text = card['back'] if card['back'] else "Answer content missing."
-                        st.write(f"**Answer:** {ans_text}")
+                q_text = card['front'] if card['front'] else "Question missing."
+                ans_text = card['back'] if card['back'] else "Answer missing."
+                
+                # HTML template for a true sensory hover-to-flip aesthetic
+                card_html = f"""
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <span style="font-size: 0.85em; color: #888;">🎴 FLASHCARD {idx}</span>
+                            <p style="font-weight: bold; font-size: 1.1em; margin-top: 10px;">{q_text}</p>
+                            <span style="font-size: 0.75em; color: #555; margin-top: auto;">💡 Hover your mouse to flip</span>
+                        </div>
+                        <div class="flip-card-back">
+                            <span style="font-size: 0.85em; color: #ffd700;">✨ ANSWER</span>
+                            <p style="font-size: 1.05em; margin-top: 10px;">{ans_text}</p>
+                        </div>
+                    </div>
+                </div>
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
                         
         elif st.session_state.normal_response:
             st.write(st.session_state.normal_response)
