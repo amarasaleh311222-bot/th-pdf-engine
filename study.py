@@ -14,6 +14,14 @@ if not GEMINI_API_KEY:
     except Exception:
         st.error("API Key missing! Please add GEMINI_API_KEY to Render's Environment Variables.")
 
+# Initialize session state variables so data doesn't disappear on click
+if "flashcards" not in st.session_state:
+    st.session_state.flashcards = None
+if "normal_response" not in st.session_state:
+    st.session_state.normal_response = None
+if "last_query" not in st.session_state:
+    st.session_state.last_query = ""
+
 # --- SIDEBAR UPLOADER SECTION ---
 with st.sidebar:
     st.header("Upload Document")
@@ -40,7 +48,6 @@ if uploaded_file is not None:
     col1, col2, col3 = st.columns(3)
     
     preset_query = ""
-    is_flashcard_mode = False
     
     with col1:
         if st.button("📝 Generate Comprehensive Summary"):
@@ -55,10 +62,10 @@ if uploaded_file is not None:
     st.write("### 💬 Ask Anything")
     user_query = st.text_input("Enter your question or use a quick prompt above:", value=preset_query)
 
-    if user_query:
-        if "[CARD_START]" in user_query or "Flashcards" in user_query:
-            is_flashcard_mode = True
-
+    # Trigger API only if the user query changed or a button was pressed
+    if user_query and user_query != st.session_state.last_query:
+        st.session_state.last_query = user_query
+        
         with st.spinner("Gemini is analyzing your document instantly..."):
             try:
                 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -70,35 +77,49 @@ if uploaded_file is not None:
                     contents=full_prompt,
                 )
                 
-                st.write("### 🤖 Gemini Response:")
+                raw_text = response.text
                 
-                if is_flashcard_mode:
-                    raw_text = response.text
+                # Check if we are running flashcards
+                if "[CARD_START]" in user_query or "Flashcards" in user_query:
                     cards = re.findall(r'\[CARD_START\](.*?)\[CARD_END\]', raw_text, re.DOTALL)
+                    parsed_cards = []
                     
-                    if cards:
-                        for idx, card in enumerate(cards, 1):
-                            front_match = re.search(r'FRONT:\s*(.*?)(?=\nBACK:|$)', card, re.DOTALL)
-                            back_match = re.search(r'BACK:\s*(.*)', card, re.DOTALL)
-                            
-                            if front_match and back_match:
-                                front_text = front_match.group(1).strip()
-                                back_text = back_match.group(1).strip()
-                                
-                                with st.container(border=True):
-                                    st.write(f"**🎴 Flashcard {idx}**")
-                                    st.write(f"**Question:** {front_text}")
-                                    
-                                    # Interactive Reveal Checkbox
-                                    if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
-                                        st.markdown("---")
-                                        st.write(f"**Answer:** {back_text}")
-                    else:
-                        st.write(raw_text) # ✅ Fixed: Added 'st' prefix here
+                    for card in cards:
+                        front_match = re.search(r'FRONT:\s*(.*?)(?=\nBACK:|$)', card, re.DOTALL)
+                        back_match = re.search(r'BACK:\s*(.*)', card, re.DOTALL)
+                        if front_match and back_match:
+                            parsed_cards.append({
+                                "front": front_match.group(1).strip(),
+                                "back": back_match.group(1).strip()
+                            })
+                    
+                    st.session_state.flashcards = parsed_cards
+                    st.session_state.normal_response = None
                 else:
-                    st.write(response.text)
+                    st.session_state.normal_response = raw_text
+                    st.session_state.flashcards = None
                     
             except Exception as e:
                 st.error(f"Gemini API Error: {e}")
+
+    # --- RENDERING SECTION (Keeps everything visible on screen) ---
+    if st.session_state.flashcards or st.session_state.normal_response:
+        st.write("### 🤖 Gemini Response:")
+
+        # Render Flashcards safely from storage state
+        if st.session_state.flashcards:
+            for idx, card in enumerate(st.session_state.flashcards, 1):
+                with st.container(border=True):
+                    st.write(f"**🎴 Flashcard {idx}**")
+                    st.write(f"Question:")
+                    
+                    # Interactive Flip Checkbox
+                    if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
+                        st.markdown("---")
+                        st.write(f"Answer:")
+                        
+        # Render Standard Summary texts safely
+        elif st.session_state.normal_response:
+            st.write(st.session_state.normal_response)
 else:
     st.info("Please upload a PDF file from the sidebar to begin processing.")
