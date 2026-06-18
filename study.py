@@ -85,8 +85,8 @@ if uploaded_file is not None:
                     parsed_cards = []
                     
                     for card in cards:
-                        # Smart case-insensitive regex matching for FRONT/FRONT: and BACK/BACK:
-                        front_match = re.search(r'FRONT:\s*(.*?)(?=\n(?:BACK|BACK:)|$)', card, re.IGNORECASE | re.DOTALL)
+                        # Fixed: Bulletproof matching that stops at BACK regardless of spacing or line breaks
+                        front_match = re.search(r'FRONT:\s*(.*?)\s*(?=BACK:|$)', card, re.IGNORECASE | re.DOTALL)
                         back_match = re.search(r'BACK:\s*(.*)', card, re.IGNORECASE | re.DOTALL)
                         
                         if front_match and back_match:
@@ -116,13 +116,15 @@ if uploaded_file is not None:
             for idx, card in enumerate(st.session_state.flashcards, 1):
                 with st.container(border=True):
                     st.write(f"**🎴 Flashcard {idx}**")
-                    st.write(f"Question:")
+                    
+                    # Clean fallback check just in case text parsing encounters an issue
+                    q_text = card['front'] if card['front'] else "Question content missing. Click below to flip."
+                    st.write(f"**Question:** {q_text}")
                     
                     # Interactive Flip Checkbox
                     if st.checkbox("🔄 Flip to see Answer", key=f"card_{idx}"):
                         st.markdown("---")
-                        # Added a clean fallback message if the answer string is blank
-                        ans_text = card['back'] if card['back'] else "No answer content generated. Try regenerating."
+                        ans_text = card['back'] if card['back'] else "Answer content missing."
                         st.write(f"**Answer:** {ans_text}")
                         
         elif st.session_state.normal_response:
